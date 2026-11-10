@@ -1,8 +1,9 @@
 name: Make and schedule video
 
 on:
-  schedule:
-    - cron: "17 9 * * 1,3,5"     # Mon/Wed/Fri ~4 AM New York; each video is scheduled for 5 PM that day
+  # Automatic schedule PAUSED while each video type is reviewed. To resume, uncomment the two lines below.
+  # schedule:
+  #   - cron: "17 9 * * 1,3,5"
   workflow_dispatch:
     inputs:
       minutes:
