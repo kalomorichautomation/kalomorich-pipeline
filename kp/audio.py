@@ -116,7 +116,7 @@ def loop(seed=5, transpose=0, kick=1, bass=1, hats=1, oct=0, rot=0, riser=1):
     return mix
 
 
-def soundtrack(path, seed, minutes=60, transpose=0):
+def soundtrack(path, seed, minutes=60, transpose=0, arrange_seed=None):
     """Arrange variations into a track of `minutes` length and write a 16-bit WAV."""
     V = {
         "full": loop(seed, transpose, riser=0),
@@ -135,7 +135,7 @@ def soundtrack(path, seed, minutes=60, transpose=0):
              ["high"] * 5 + ["full_rise"], ["groove"] * 5 + ["full_rise"]]
     breaks = [["breakdown", "breakdown", "break_rise"], ["breakdown", "break_rise"]]
     total = minutes * 6
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed if arrange_seed is None else arrange_seed)
     seq, last = ["breakdown", "breakdown", "break_rise"], -1
     while len(seq) < total:
         for _ in range(rng.integers(2, 4)):

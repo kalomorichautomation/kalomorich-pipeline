@@ -16,6 +16,14 @@ from kp import audio, meta, thumb, visual
 
 PLAYLIST = "Trippy Visuals"
 
+# The first video, exactly as approved on Nov 10 (look, music, title, thumbnail).
+FIRST_VIDEO = {
+    "look": {"seed": 5, "palette": "Neon", "seg": 12, "cx": 0.78, "cy": 0.58, "spin_frames": 300, "palette_cycles": 3},
+    "music_seed": 5, "arrange_seed": 42,
+    "title": "Trippy Fractal Mandala | 1 Hour Psychedelic Visuals & Music",
+    "thumb": {"frame": 75, "palette": "Ocean", "text": "LOOK CLOSER"},
+}
+
 
 def font():
     for p in ["fonts/Poppins-Bold.ttf", *glob.glob("/usr/share/fonts/**/DejaVuSans-Bold.ttf", recursive=True)]:
@@ -57,26 +65,41 @@ def main():
     ap.add_argument("--publish-at", default="auto", help="'auto' (5 PM New York), 'now', or RFC3339 UTC")
     ap.add_argument("--no-upload", action="store_true")
     ap.add_argument("--out", default="out")
+    ap.add_argument("--preset", default="", help="'first' = the approved first video")
     a = ap.parse_args()
     a.cycle_seconds = min(a.cycle_seconds, a.minutes * 60)   # short test runs render a short cycle
 
     os.makedirs(a.out, exist_ok=True)
     p = visual.params_for(a.seed)
     m = meta.for_video(a.seed, p["palette"])
+    music_seed, arrange_seed = a.seed, None
+    if a.preset == "first":
+        p = dict(FIRST_VIDEO["look"])
+        m = meta.for_video(0, "Neon")
+        m["title"] = FIRST_VIDEO["title"]
+        m["description"] = m["description"].replace("A neon fractal", "A fractal")
+        m["thumb_text"] = FIRST_VIDEO["thumb"]["text"]
+        music_seed, arrange_seed = FIRST_VIDEO["music_seed"], FIRST_VIDEO["arrange_seed"]
     print("look:", json.dumps(p)); print("title:", m["title"]); sys.stdout.flush()
 
     cycle = visual.render_cycle(p, f"{a.out}/cycle.mp4", seconds=a.cycle_seconds)
     print("visual cycle rendered", flush=True)
-    track = audio.soundtrack(f"{a.out}/track.wav", seed=a.seed, minutes=a.minutes,
-                             transpose=[0, 2, -2, 3, -3][a.seed % 5])
+    track = audio.soundtrack(f"{a.out}/track.wav", seed=music_seed, minutes=a.minutes,
+                             transpose=0 if a.preset == "first" else [0, 2, -2, 3, -3][a.seed % 5],
+                             arrange_seed=arrange_seed)
     print("soundtrack done", flush=True)
     video = f"{a.out}/video.mp4"
     assemble(cycle, track, video, a.minutes * 60)
     print("assembled", os.path.getsize(video) // 2**20, "MB", flush=True)
 
     n = visual.FPS * a.cycle_seconds
-    visual.still(p, n // 3, n, f"{a.out}/still.png")
-    jpg = thumb.make(f"{a.out}/still.png", f"{a.out}/thumb.jpg", m["thumb_text"], p["palette"], font())
+    if a.preset == "first":                  # the blue "LOOK CLOSER" thumbnail picked on Nov 10
+        visual.still(p, FIRST_VIDEO["thumb"]["frame"], n, f"{a.out}/still.png")
+        jpg = thumb.make(f"{a.out}/still.png", f"{a.out}/thumb.jpg", m["thumb_text"],
+                         FIRST_VIDEO["thumb"]["palette"], font(), crop=(320, 180, 1600, 900))
+    else:
+        visual.still(p, n // 3, n, f"{a.out}/still.png")
+        jpg = thumb.make(f"{a.out}/still.png", f"{a.out}/thumb.jpg", m["thumb_text"], p["palette"], font())
 
     result = {"seed": a.seed, "look": p, "meta": m}
     if not a.no_upload:

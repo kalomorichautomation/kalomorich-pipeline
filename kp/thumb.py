@@ -6,8 +6,8 @@ GLOW = {"Neon": (255, 60, 200), "Ocean": (0, 220, 255), "Emerald": (90, 255, 160
         "Ember": (255, 150, 40), "Cosmic": (170, 120, 255), "Prism": (255, 200, 90)}
 
 
-def make(frame_png, out_jpg, text, palette, font_path):
-    im = Image.open(frame_png).convert("RGB").crop((240, 135, 1680, 945)).resize((1280, 720), Image.LANCZOS)
+def make(frame_png, out_jpg, text, palette, font_path, crop=(240, 135, 1680, 945)):
+    im = Image.open(frame_png).convert("RGB").crop(crop).resize((1280, 720), Image.LANCZOS)
     a = (np.asarray(im) / 255.0) ** 1.4
     im = Image.fromarray((a * 255).astype(np.uint8))
     im = ImageEnhance.Color(ImageEnhance.Contrast(im).enhance(1.3)).enhance(1.3).convert("RGBA")

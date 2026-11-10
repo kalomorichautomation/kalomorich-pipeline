@@ -19,6 +19,9 @@ on:
       seed:
         description: "Look/music seed (blank = today's)"
         default: ""
+      preset:
+        description: "'first' = the approved first trippy video (blank = normal)"
+        default: ""
 
 concurrency: make-video
 
@@ -52,6 +55,7 @@ jobs:
           ARGS="--minutes ${{ inputs.minutes || '60' }} --publish-at ${{ inputs.publish_at || 'auto' }}"
           if [ -n "${{ inputs.seed }}" ]; then ARGS="$ARGS --seed ${{ inputs.seed }}"; fi
           if [ "${{ inputs.upload }}" = "false" ]; then ARGS="$ARGS --no-upload"; fi
+          if [ -n "${{ inputs.preset }}" ]; then ARGS="$ARGS --preset ${{ inputs.preset }}"; fi
           python make_video.py $ARGS
       - name: Keep thumbnail and details
         if: always()
