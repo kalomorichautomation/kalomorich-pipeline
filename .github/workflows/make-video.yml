@@ -21,6 +21,9 @@ on:
 
 concurrency: make-video
 
+permissions:
+  contents: write          # only used to append to log/runs.md
+
 jobs:
   make:
     runs-on: ubuntu-latest
@@ -58,3 +61,14 @@ jobs:
             out/thumb.jpg
             out/result.json
           retention-days: 30
+      - name: Record run (keeps the schedule from being paused after 60 quiet days)
+        if: always()
+        run: |
+          mkdir -p log
+          TITLE=$(jq -r '.meta.title // "no video"' out/result.json 2>/dev/null || echo "no video")
+          LINK=$(jq -r 'if .video_id then "https://youtu.be/" + .video_id else "" end' out/result.json 2>/dev/null || true)
+          echo "- $(date -u +'%Y-%m-%d %H:%M') UTC: ${{ job.status }}: ${TITLE} ${LINK}" >> log/runs.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add log/runs.md
+          git commit -m "Log run $(date -u +%F)" && git push || echo "log not pushed"
