@@ -1,0 +1,60 @@
+name: Make and schedule video
+
+on:
+  schedule:
+    - cron: "17 9 * * 1,3,5"     # Mon/Wed/Fri ~4 AM New York; each video is scheduled for 5 PM that day
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Video length in minutes"
+        default: "60"
+      publish_at:
+        description: "'auto' = 5 PM New York, 'now' = upload private now, or RFC3339 UTC time"
+        default: "auto"
+      upload:
+        description: "Upload to YouTube (untick for a test render only)"
+        type: boolean
+        default: true
+      seed:
+        description: "Look/music seed (blank = today's)"
+        default: ""
+
+concurrency: make-video
+
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+      - name: Fetch thumbnail font
+        run: |
+          mkdir -p fonts
+          curl -fsSL -o fonts/Poppins-Bold.ttf https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf || echo "font download failed, using fallback"
+      - name: Make video
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: |
+          ARGS="--minutes ${{ inputs.minutes || '60' }} --publish-at ${{ inputs.publish_at || 'auto' }}"
+          if [ -n "${{ inputs.seed }}" ]; then ARGS="$ARGS --seed ${{ inputs.seed }}"; fi
+          if [ "${{ inputs.upload }}" = "false" ]; then ARGS="$ARGS --no-upload"; fi
+          python make_video.py $ARGS
+      - name: Keep thumbnail and details
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-details
+          path: |
+            out/thumb.jpg
+            out/result.json
+          retention-days: 30
