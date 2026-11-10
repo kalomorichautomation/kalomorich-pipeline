@@ -10,7 +10,7 @@ on:
         description: "Video length in minutes"
         default: "60"
       publish_at:
-        description: "'auto' = 5 PM New York, 'now' = upload private now, or RFC3339 UTC time"
+        description: "'auto' = 5 PM New York, 'now' = upload private now, or a time like 2026-11-10T17:00"
         default: "auto"
       upload:
         description: "Upload to YouTube (untick for a test render only)"
@@ -76,4 +76,4 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add log/runs.md
-          git commit -m "Log run $(date -u +%F)" && git push || echo "log not pushed"
+          git commit -m "Log run $(date -u +%F)" && (git pull --rebase -q && git push) || echo "log not pushed"

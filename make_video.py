@@ -45,16 +45,28 @@ def assemble(cycle, track, out, seconds):
 
 
 def publish_time(spec):
-    if spec in (None, "", "now"):
+    """'now' -> None (upload private, no schedule); 'auto' -> 5 PM New York; or any ISO date-time.
+    Returns an RFC3339 UTC string YouTube accepts, or raises a clear error before any rendering."""
+    s = (spec or "").strip().lower()
+    if s in ("", "now", "private", "none"):
         return None
-    if spec == "auto":                       # 5 PM New York time today (or tomorrow if past)
-        ny = ZoneInfo("America/New_York")
-        now = dt.datetime.now(ny)
-        t = now.replace(hour=17, minute=0, second=0, microsecond=0)
+    ny = ZoneInfo("America/New_York")
+    now = dt.datetime.now(dt.timezone.utc)
+    if s == "auto":
+        t = dt.datetime.now(ny).replace(hour=17, minute=0, second=0, microsecond=0)
         if t <= now + dt.timedelta(minutes=30):
             t += dt.timedelta(days=1)
-        return t.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return spec
+    else:
+        try:
+            t = dt.datetime.fromisoformat(spec.strip().replace("Z", "+00:00"))
+        except ValueError:
+            raise SystemExit(f"publish_at '{spec}' not understood: use now, auto, or e.g. 2026-11-10T17:00-05:00")
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=ny)          # bare times are New York time
+    t = t.astimezone(dt.timezone.utc)
+    if t <= now + dt.timedelta(minutes=15):
+        raise SystemExit(f"publish_at {t:%Y-%m-%d %H:%M} UTC is in the past or too soon")
+    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def main():
@@ -70,6 +82,8 @@ def main():
     a.cycle_seconds = min(a.cycle_seconds, a.minutes * 60)   # short test runs render a short cycle
 
     os.makedirs(a.out, exist_ok=True)
+    when = None if a.no_upload else publish_time(a.publish_at)     # fail fast, before rendering
+    print("publish at:", when or "not scheduled (private)", flush=True)
     p = visual.params_for(a.seed)
     m = meta.for_video(a.seed, p["palette"])
     music_seed, arrange_seed = a.seed, None
@@ -105,7 +119,6 @@ def main():
     if not a.no_upload:
         from kp import youtube
         yt = youtube.client()
-        when = publish_time(a.publish_at)
         vid = youtube.upload(yt, video, m, publish_at=when)
         print("uploaded:", f"https://youtu.be/{vid}", "scheduled for", when or "now (private)", flush=True)
         result.update(video_id=vid, publish_at=when,
