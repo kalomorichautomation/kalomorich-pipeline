@@ -23,9 +23,11 @@ def client():
     return build("youtube", "v3", credentials=creds, cache_discovery=False)
 
 
-def upload(yt, path, meta, publish_at=None, category="24"):
+def upload(yt, path, meta, publish_at=None, category="24", synthetic=False):
     """Upload as private; if publish_at (RFC3339 UTC) is given, YouTube publishes it then."""
     status = {"privacyStatus": "private", "selfDeclaredMadeForKids": False}
+    if synthetic:
+        status["containsSyntheticMedia"] = True              # realistic AI-generated scene disclosure
     if publish_at:
         status["publishAt"] = publish_at
     body = {
@@ -68,7 +70,7 @@ def add_to_playlist(yt, video_id, title):
         req = yt.playlists().list_next(req, res)
     if pid is None:
         pid = yt.playlists().insert(part="snippet,status", body={
-            "snippet": {"title": title, "description": "Original trippy visuals and psychedelic music by Kalomorich Productions."},
+            "snippet": {"title": title, "description": f"{title} by Kalomorich Productions."},
             "status": {"privacyStatus": "public"}}).execute()["id"]
     yt.playlistItems().insert(part="snippet", body={
         "snippet": {"playlistId": pid, "resourceId": {"kind": "youtube#video", "videoId": video_id}}}).execute()
