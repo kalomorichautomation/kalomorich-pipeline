@@ -121,9 +121,17 @@ def main():
         yt = youtube.client()
         vid = youtube.upload(yt, video, m, publish_at=when)
         print("uploaded:", f"https://youtu.be/{vid}", "scheduled for", when or "now (private)", flush=True)
-        result.update(video_id=vid, publish_at=when,
-                      thumbnail=youtube.set_thumbnail(yt, vid, jpg),
-                      playlist=youtube.add_to_playlist(yt, vid, PLAYLIST))
+        result.update(video_id=vid, publish_at=when)
+        with open(f"{a.out}/result.json", "w") as f:      # record the upload before any optional step can fail
+            json.dump(result, f, indent=2)
+        try:
+            result["thumbnail"] = youtube.set_thumbnail(yt, vid, jpg)
+        except Exception as e:
+            result["thumbnail"] = False; print("  thumbnail step failed:", e, flush=True)
+        try:
+            result["playlist"] = youtube.add_to_playlist(yt, vid, PLAYLIST)
+        except Exception as e:
+            result["playlist"] = None; print("  playlist step failed:", e, flush=True)
     with open(f"{a.out}/result.json", "w") as f:
         json.dump(result, f, indent=2)
     summ = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -132,7 +140,8 @@ def main():
             f.write(f"### {m['title']}\n\n- Look: {p['palette']}, {p['seg']} segments, seed {a.seed}\n"
                     f"- Thumbnail text: {m['thumb_text']}\n")
             if "video_id" in result:
-                f.write(f"- Video: https://youtu.be/{result['video_id']} (publishes {result['publish_at']})\n")
+                f.write(f"- Video: https://youtu.be/{result['video_id']} (publishes {result['publish_at']})\n"
+                        f"- Thumbnail set: {result.get('thumbnail')}  Playlist: {result.get('playlist')}\n")
 
 
 if __name__ == "__main__":
